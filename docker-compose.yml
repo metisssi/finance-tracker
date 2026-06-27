@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: finance-db
+    environment:
+      POSTGRES_USER: financeuser
+      POSTGRES_PASSWORD: heslo123
+      POSTGRES_DB: financedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finance-backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://financeuser:heslo123@postgres:5432/financedb
+      EXCHANGE_API_KEY: ${EXCHANGE_API_KEY}
+      PORT: 3000
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
