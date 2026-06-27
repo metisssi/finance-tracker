@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { fetchAndSaveRates } from "../services/currencyService"
+import { authMiddleware } from "../middleware/authMiddleware";
 import { PrismaClient } from "@prisma/client";
 
 const router = Router();
@@ -36,7 +37,7 @@ router.get("/rates/:code", async (req, res) => {
 
 
 // Add value in watchlist
-router.post("/watchlist", async (req, res) => {
+router.post("/watchlist", authMiddleware, async (req, res) => {
   try {
     const { currencyCode } = req.body;
     if (!currencyCode) {
@@ -64,7 +65,7 @@ router.get("/watchlist", async (req, res) => {
 
 
 // Remove from watchlist
-router.delete("/watchlist/:id", async (req, res) => {
+router.delete("/watchlist/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     
