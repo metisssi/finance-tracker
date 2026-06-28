@@ -13,10 +13,18 @@ export const fetchAndSaveRates = async () => {
     const rates = response.data.rates;
 
     for (const [code, rate] of Object.entries(rates)) {
+
+        // Updating the current exchange rate 
         await prisma.currency.upsert({
             where: { code },
             update: {rate: rate as number }, 
             create: { code, name: code, rate: rate as number}
+        });
+
+
+        // Save to history 
+        await prisma.currencyHistory.create({
+            data: { code, rate: rate as number }
         })
     }
 
