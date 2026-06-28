@@ -86,4 +86,21 @@ router.delete("/watchlist/:id", authMiddleware, async (req, res) => {
   }
 });
 
+
+// Exchange rate history for a specific currency
+router.get("/history/:code", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const history = await prisma.currencyHistory.findMany({
+      where: { code: code.toUpperCase() },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    });
+    res.json({ success: true, data: history });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to get history" });
+  }
+});
+
+
 export default router;
