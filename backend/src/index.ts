@@ -23,11 +23,11 @@ app.use("/api/auth", authRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  seedHistoricalRates()
+    .then(() => console.log("Seed completed"))
+    .catch((err) => console.error("Seed failed:", err));
 });
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err);
-  seedHistoricalRates()
-  .then(() => console.log("Seed completed"))
-  .catch((err) => console.error("Seed failed:", err));
 });
