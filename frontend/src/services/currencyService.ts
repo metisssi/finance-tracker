@@ -24,3 +24,9 @@ export const removeFromWatchlist = async (id: number) => {
   const response = await api.delete(`/currencies/watchlist/${id}`);
   return response.data;
 };
+
+export const getChanges = async () => {
+  const response = await api.get("/currencies/changes");
+  return response.data;
+};
+

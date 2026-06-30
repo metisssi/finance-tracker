@@ -3,12 +3,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const BASE_URL = process.env.FRANKFURTER_API_URL || "https://api.frankfurter.app";
+const BASE_URL = "https://api.frankfurter.app";
 
 export const fetchAndSaveRates = async () => {
-
-    const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=USD,GBP,CZK,JPY,CHF,PLN,CAD`);
-
+    const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=USD,GBP,CZK`);
     const rates = { EUR: 1, ...response.data.rates };
 
     for (const [code, rate] of Object.entries(rates)) {
@@ -37,7 +35,7 @@ export const seedHistoricalRates = async () => {
     const fmt = (d: Date) => d.toISOString().split("T")[0];
 
     const response = await axios.get(
-        `${BASE_URL}/${fmt(start)}..${fmt(end)}?from=EUR&to=USD,GBP,CZK,JPY,CHF,PLN,CAD`
+        `${BASE_URL}/${fmt(start)}..${fmt(end)}?from=EUR&to=USD,GBP,CZK`
     );
 
     const { rates: dailyRates } = response.data;
