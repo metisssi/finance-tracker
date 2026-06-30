@@ -1,32 +1,51 @@
-import axios from "axios"
+import axios from "axios";
 import { PrismaClient } from "@prisma/client";
-
 
 const prisma = new PrismaClient();
 
-export const fetchAndSaveRates = async () => {
-    
-    const response = await axios.get(
-         `http://api.exchangeratesapi.io/v1/latest?access_key=${process.env.EXCHANGE_API_KEY}&symbols=USD,EUR,GBP,CZK`
-    );
+const BASE_URL = process.env.FRANKFURTER_API_URL || "https://api.frankfurter.app";
 
-    const rates = response.data.rates;
+export const fetchAndSaveRates = async () => {
+    const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=USD,GBP,CZK`);
+    const rates = { EUR: 1, ...response.data.rates };
 
     for (const [code, rate] of Object.entries(rates)) {
-
-        // Updating the current exchange rate 
         await prisma.currency.upsert({
             where: { code },
-            update: {rate: rate as number }, 
-            create: { code, name: code, rate: rate as number}
+            update: { rate: rate as number },
+            create: { code, name: code, rate: rate as number },
         });
 
-
-        // Save to history 
         await prisma.currencyHistory.create({
-            data: { code, rate: rate as number }
-        })
+            data: { code, rate: rate as number },
+        });
     }
 
     return rates;
-}
+};
+
+export const seedHistoricalRates = async () => {
+    const existing = await prisma.currencyHistory.count();
+    if (existing > 0) return;
+
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
+
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+    const response = await axios.get(
+        `${BASE_URL}/${fmt(start)}..${fmt(end)}?from=EUR&to=USD,GBP,CZK`
+    );
+
+    const { rates: dailyRates } = response.data;
+
+    for (const [date, rates] of Object.entries(dailyRates) as [string, Record<string, number>][]) {
+        const allRates = { EUR: 1, ...rates };
+        for (const [code, rate] of Object.entries(allRates)) {
+            await prisma.currencyHistory.create({
+                data: { code, rate, createdAt: new Date(date) },
+            });
+        }
+    }
+};

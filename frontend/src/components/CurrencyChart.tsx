@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getHistory } from "../services/currencyService";
 
+
+
 interface HistoryItem {
   id: number;
   code: string;
@@ -25,7 +27,7 @@ const CurrencyChart = ({ code }: Props) => {
   }, [code]);
 
   const data = history.map((item) => ({
-    time: new Date(item.createdAt).toLocaleTimeString(),
+    time: new Date(item.createdAt).toLocaleDateString(),
     rate: item.rate,
   }));
 
