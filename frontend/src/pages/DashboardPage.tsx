@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRates, getWatchlist, addToWatchlist, removeFromWatchlist } from "../services/currencyService";
 import { logout } from "../services/authService";
+import CurrencyChart from "../components/CurrencyChart";
 
 interface Rate {
   [key: string]: number;
@@ -19,6 +20,8 @@ interface Props {
 const DashboardPage = ({ onLogout }: Props) => {
   const [rates, setRates] = useState<Rate>({});
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  // ДОБАВЛЕНО: выбранная валюта для отображения графика
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
 
   const fetchData = async () => {
     const ratesRes = await getRates();
@@ -71,7 +74,12 @@ const DashboardPage = ({ onLogout }: Props) => {
             </thead>
             <tbody>
               {Object.entries(rates).map(([code, rate]) => (
-                <tr key={code} className="border-b border-gray-700">
+                // ИЗМЕНЕНО: клик на строку показывает/скрывает график этой валюты
+                <tr
+                  key={code}
+                  className="border-b border-gray-700 cursor-pointer hover:bg-gray-700 transition"
+                  onClick={() => setSelectedCode(code === selectedCode ? null : code)}
+                >
                   <td className="py-3 font-semibold">{code}</td>
                   <td className="py-3 text-green-400">{rate}</td>
                   <td className="py-3">
@@ -87,6 +95,9 @@ const DashboardPage = ({ onLogout }: Props) => {
             </tbody>
           </table>
         </div>
+
+        {/* ДОБАВЛЕНО: график появляется под таблицей при клике на валюту */}
+        {selectedCode && <CurrencyChart code={selectedCode} />}
 
         <div className="bg-gray-800 rounded-2xl p-6">
           <h2 className="text-xl font-semibold mb-4">My Watchlist</h2>

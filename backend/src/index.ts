@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import currencyRoutes from "./routes/currencyRoutes";
 import authRoutes from "./routes/authRoutes";
+import { seedHistoricalRates } from "./services/currencyService";
+
 
 dotenv.config();
 
@@ -25,4 +27,7 @@ app.listen(PORT, () => {
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err);
+  seedHistoricalRates()
+  .then(() => console.log("Seed completed"))
+  .catch((err) => console.error("Seed failed:", err));
 });
