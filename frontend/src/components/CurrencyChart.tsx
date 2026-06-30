@@ -36,8 +36,8 @@ const CurrencyChart = ({ code }: Props) => {
       <h3 className="text-white font-semibold mb-4">{code} Rate History</h3>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data}>
-          <XAxis dataKey="time" stroke="#9ca3af" tick={{ fontSize: 11 }} />
-          <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} />
+          <XAxis dataKey="time" stroke="#9ca3af" tick={{ fontSize: 11 }} domain={['auto', 'auto']}/>
+          <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
           <Tooltip />
           <Line type="monotone" dataKey="rate" stroke="#3b82f6" dot={false} />
         </LineChart>

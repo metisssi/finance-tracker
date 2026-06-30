@@ -93,8 +93,8 @@ router.get("/history/:code", async (req, res) => {
     const { code } = req.params;
     const history = await prisma.currencyHistory.findMany({
       where: { code: code.toUpperCase() },
-      orderBy: { createdAt: "desc" },
-      take: 10
+      orderBy: { createdAt: "asc" },
+      take: 30
     });
     res.json({ success: true, data: history });
   } catch (error) {
