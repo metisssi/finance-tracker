@@ -28,10 +28,11 @@ router.post("/register", registerLimiter, async (req, res) => {
       res.status(400).json({ success: false, message: "Invalid email format" });
       return;
     }
-    if (password.length < 6) {
-      res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!strongPassword.test(password)) {
+      res.status(400).json({ success: false, message: "Password must be 8+ characters with uppercase, lowercase, number and symbol" });
       return;
-    }
+  }
     const user = await register(email, password);
     res.json({ success: true, data: user });
   } catch (error) {
