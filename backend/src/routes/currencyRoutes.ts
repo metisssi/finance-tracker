@@ -102,22 +102,34 @@ router.get("/history/:code", async (req, res) => {
   }
 });
 
-// Get 24h change percentage for all currencies
+// Get last 7 days change percentage for all currencies
 router.get("/changes", async (req, res) => {
   try {
     const currencies = ["EUR", "USD", "GBP", "CZK", "JPY", "CHF", "PLN", "CAD"];
     const changes: { [key: string]: number } = {};
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const weekAgoStart = new Date(todayStart);
+    weekAgoStart.setDate(weekAgoStart.getDate() - 7);
+    const weekAgoEnd = new Date(weekAgoStart);
+    weekAgoEnd.setDate(weekAgoEnd.getDate() + 1);
+
     for (const code of currencies) {
-      const history = await prisma.currencyHistory.findMany({
-        where: { code },
+      const todayRecord = await prisma.currencyHistory.findFirst({
+        where: { code, createdAt: { gte: todayStart } },
         orderBy: { createdAt: "desc" },
-        take: 2,
       });
 
-      if (history.length === 2) {
-        const current = history[0].rate;
-        const previous = history[1].rate;
+      const weekAgoRecord = await prisma.currencyHistory.findFirst({
+        where: { code, createdAt: { gte: weekAgoStart, lt: weekAgoEnd } },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (todayRecord && weekAgoRecord) {
+        const current = todayRecord.rate;
+        const previous = weekAgoRecord.rate;
         changes[code] = parseFloat((((current - previous) / previous) * 100).toFixed(2));
       } else {
         changes[code] = 0;

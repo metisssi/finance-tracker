@@ -3,11 +3,15 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const BASE_URL = "https://api.frankfurter.app";
+const BASE_URL = process.env.FRANKFURTER_API_URL || "https://api.frankfurter.app";
+const CURRENCIES = "USD,GBP,CZK,JPY,CHF,PLN,CAD";
 
 export const fetchAndSaveRates = async () => {
-    const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=USD,GBP,CZK`);
+    const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=${CURRENCIES}`);
     const rates = { EUR: 1, ...response.data.rates };
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
     for (const [code, rate] of Object.entries(rates)) {
         await prisma.currency.upsert({
@@ -16,9 +20,13 @@ export const fetchAndSaveRates = async () => {
             create: { code, name: code, rate: rate as number },
         });
 
-        await prisma.currencyHistory.create({
-            data: { code, rate: rate as number },
+        const existing = await prisma.currencyHistory.findFirst({
+            where: { code, createdAt: { gte: todayStart } }
         });
+
+        if (!existing) {
+            await prisma.currencyHistory.create({ data: { code, rate: rate as number } });
+        }
     }
 
     return rates;
@@ -35,7 +43,7 @@ export const seedHistoricalRates = async () => {
     const fmt = (d: Date) => d.toISOString().split("T")[0];
 
     const response = await axios.get(
-        `${BASE_URL}/${fmt(start)}..${fmt(end)}?from=EUR&to=USD,GBP,CZK`
+        `${BASE_URL}/${fmt(start)}..${fmt(end)}?from=EUR&to=${CURRENCIES}`
     );
 
     const { rates: dailyRates } = response.data;
