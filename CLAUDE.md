@@ -4,13 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Monorepo with a Node.js/Express backend and React frontend for tracking currency exchange rates. The backend fetches live rates from the ExchangeRates API and stores them in PostgreSQL via Prisma. The frontend provides auth (register/login) and a dashboard showing rates and a personal watchlist.
+Monorepo with a Node.js/Express backend and React frontend for tracking currency exchange rates. The backend fetches live rates from the **Frankfurter API** (free, no key needed) and stores them in PostgreSQL via Prisma. The frontend provides auth (register/login) and a dashboard showing rates, weekly % change, a 30-day chart, and a personal watchlist scoped to each user.
 
 ## Commands
 
 ### Full stack (Docker — recommended)
 ```bash
-# Requires EXCHANGE_API_KEY in a root .env file
 docker-compose up --build
 # Backend runs on :3000, Postgres on :5432
 ```
@@ -39,32 +38,39 @@ npm run lint       # eslint
 ### Environment variables
 | Variable | Where | Purpose |
 |---|---|---|
-| `EXCHANGE_API_KEY` | root `.env` (docker) or `backend/.env` (local) | exchangeratesapi.io key |
 | `DATABASE_URL` | backend env | Postgres connection string |
-| `JWT_SECRET` | backend env | Signs JWTs (falls back to `"secret"` if unset) |
+| `JWT_SECRET` | backend env | Signs JWTs (falls back to `"secret"` if unset) — tokens expire in 1h |
+| `FRANKFURTER_API_URL` | backend env (optional) | Override Frankfurter base URL (default: `https://api.frankfurter.app`) |
+
+`EXCHANGE_API_KEY` is no longer used — the project switched to Frankfurter (free, no key).
 
 ## Architecture
 
 ### Backend (`backend/src/`)
 ```
-index.ts              Express app setup, mounts /api/currencies and /api/auth
+index.ts              Express app setup, mounts /api/currencies and /api/auth; runs seedHistoricalRates() on boot
 routes/
-  currencyRoutes.ts   CRUD for rates, history, and watchlist; uses Prisma directly
-  authRoutes.ts       register/login; delegates to authService
+  currencyRoutes.ts   CRUD for rates, history, watchlist, and weekly % changes; uses Prisma directly
+  authRoutes.ts       register/login with rate limiting (5 req/min login, 3 req/min register)
 services/
-  currencyService.ts  fetchAndSaveRates() — calls ExchangeRates API, upserts Currency, appends CurrencyHistory
-  authService.ts      bcrypt hashing, JWT generation
+  currencyService.ts  fetchAndSaveRates() — calls Frankfurter API, upserts Currency, deduplicates CurrencyHistory per day
+                      seedHistoricalRates() — seeds 30 days of history from Frankfurter on first boot (no-op if data exists)
+  authService.ts      bcrypt hashing, JWT generation (1h expiry)
 middleware/
   authMiddleware.ts   Validates Bearer token, attaches userId to req
 ```
 
-**Important behavior:** `GET /api/currencies/rates` calls the external API on every request — it is not cached. Each call also writes a new `CurrencyHistory` row (used to power the chart).
+**Important behavior:**
+- `GET /api/currencies/rates` calls Frankfurter on every request — not cached. Deduplicates history: only one row per currency per day is written.
+- `GET /api/currencies/changes` returns weekly % change for all 8 currencies in two batched DB queries.
+- `GET /api/currencies/history/:code` returns last 30 rows ascending (used by the chart).
+- Helmet is applied globally for security headers.
 
 ### Database schema (Prisma)
-- `User` — email/password (bcrypt), no relation to Watchlist
+- `User` — email/password (bcrypt); has a `watchlist` relation
 - `Currency` — latest rate per currency code (upserted on each fetch)
-- `CurrencyHistory` — append-only log of rates; chart queries last 10 rows desc
-- `Watchlist` — **not scoped to a user** (no `userId` FK); all watchlist entries are shared globally
+- `CurrencyHistory` — append-only log of rates, one row per currency per day; chart queries last 30 rows asc
+- `Watchlist` — **scoped to a user** via `userId` FK; each user has their own watchlist
 
 ### Frontend (`frontend/src/`)
 ```
@@ -72,14 +78,16 @@ main.tsx            React 19 entry point
 App.tsx             Manual page routing via useState ("login" | "register" | dashboard)
 pages/
   LoginPage.tsx     Auth form → calls authService → sets token in localStorage
-  RegisterPage.tsx
-  DashboardPage.tsx Fetches rates + watchlist on mount; add/remove watchlist items
+  RegisterPage.tsx  Includes repeat-password field and strong password validation (8+ chars, upper, lower, digit, symbol)
+  DashboardPage.tsx Fetches rates + weekly changes + watchlist on mount; search filter; chart on row click
 components/
-  CurrencyChart.tsx Recharts LineChart for rate history of a single currency code
+  CurrencyChart.tsx Recharts LineChart for 30-day rate history; custom tooltip; auto Y-axis scaling
+  CurrencyConverter.tsx  Simple amount converter between any two currencies from live rates
+  CurrencyFilter.tsx     Toggle which currencies are shown; persists selection to localStorage
 services/
   api.ts            Axios instance (baseURL: http://localhost:3000/api) with JWT interceptor
   authService.ts    login/register/logout/isAuthenticated — reads/writes localStorage "token"
-  currencyService.ts Thin wrappers around api.ts for all currency endpoints
+  currencyService.ts Thin wrappers: getRates, getChanges, getHistory, getWatchlist, addToWatchlist, removeFromWatchlist
 ```
 
 The frontend uses **no router library** — navigation is handled by `useState` in `App.tsx`. Auth state is determined by checking `localStorage` for a JWT token.

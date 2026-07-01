@@ -107,7 +107,6 @@ router.get("/history/:code", async (req, res) => {
 router.get("/changes", async (req, res) => {
   try {
     const currencies = ["EUR", "USD", "GBP", "CZK", "JPY", "CHF", "PLN", "CAD"];
-    const changes: { [key: string]: number } = {};
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -117,20 +116,31 @@ router.get("/changes", async (req, res) => {
     const weekAgoEnd = new Date(weekAgoStart);
     weekAgoEnd.setDate(weekAgoEnd.getDate() + 1);
 
+    const [todayRecords, weekAgoRecords] = await Promise.all([
+      prisma.currencyHistory.findMany({
+        where: { code: { in: currencies }, createdAt: { gte: todayStart } },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.currencyHistory.findMany({
+        where: { code: { in: currencies }, createdAt: { gte: weekAgoStart, lt: weekAgoEnd } },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const todayMap = new Map<string, number>();
+    for (const r of todayRecords) {
+      if (!todayMap.has(r.code)) todayMap.set(r.code, r.rate);
+    }
+    const weekAgoMap = new Map<string, number>();
+    for (const r of weekAgoRecords) {
+      if (!weekAgoMap.has(r.code)) weekAgoMap.set(r.code, r.rate);
+    }
+
+    const changes: { [key: string]: number } = {};
     for (const code of currencies) {
-      const todayRecord = await prisma.currencyHistory.findFirst({
-        where: { code, createdAt: { gte: todayStart } },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const weekAgoRecord = await prisma.currencyHistory.findFirst({
-        where: { code, createdAt: { gte: weekAgoStart, lt: weekAgoEnd } },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (todayRecord && weekAgoRecord) {
-        const current = todayRecord.rate;
-        const previous = weekAgoRecord.rate;
+      const current = todayMap.get(code);
+      const previous = weekAgoMap.get(code);
+      if (current !== undefined && previous !== undefined && previous !== 0) {
         changes[code] = parseFloat((((current - previous) / previous) * 100).toFixed(2));
       } else {
         changes[code] = 0;
