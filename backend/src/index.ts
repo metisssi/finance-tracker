@@ -1,16 +1,17 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
 import currencyRoutes from "./routes/currencyRoutes";
 import authRoutes from "./routes/authRoutes";
 import { seedHistoricalRates } from "./services/currencyService";
-
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
