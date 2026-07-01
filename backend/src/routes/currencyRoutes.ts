@@ -40,12 +40,13 @@ router.get("/rates/:code", async (req, res) => {
 router.post("/watchlist", authMiddleware, async (req, res) => {
   try {
     const { currencyCode } = req.body;
+    const userId = (req as any).userId;
     if (!currencyCode) {
       res.status(400).json({ success: false, message: "currencyCode is required" });
       return;
     }
     const item = await prisma.watchlist.create({
-      data: { currencyCode: currencyCode.toUpperCase() }
+      data: { currencyCode: currencyCode.toUpperCase(), userId }
     });
     res.json({ success: true, data: item });
   } catch (error) {
@@ -53,34 +54,34 @@ router.post("/watchlist", authMiddleware, async (req, res) => {
   }
 });
 
+
 // Get watchlist
-router.get("/watchlist", async (req, res) => {
+router.get("/watchlist", authMiddleware, async (req, res) => {
   try {
-    const items = await prisma.watchlist.findMany();
+    const userId = (req as any).userId;
+    const items = await prisma.watchlist.findMany({ where: { userId } });
     res.json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to get watchlist" });
   }
 });
 
-
 // Remove from watchlist
 router.delete("/watchlist/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const userId = (req as any).userId;
+
     if (!id || isNaN(Number(id))) {
       res.status(400).json({ success: false, message: "Valid id is required" });
       return;
     }
 
-  
     await prisma.watchlist.delete({
-      where: { id: Number(id) }
+      where: { id: Number(id), userId }
     });
 
-
-    res.json({ success: true, message: "Deleted successfully"  });
+    res.json({ success: true, message: "Deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to remove from watchlist" });
   }
@@ -102,7 +103,7 @@ router.get("/history/:code", async (req, res) => {
   }
 });
 
-// Get last 7 days change percentage for all currencies
+// Get last change percentage for all currencies
 router.get("/changes", async (req, res) => {
   try {
     const currencies = ["EUR", "USD", "GBP", "CZK", "JPY", "CHF", "PLN", "CAD"];
