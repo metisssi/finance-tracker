@@ -102,5 +102,33 @@ router.get("/history/:code", async (req, res) => {
   }
 });
 
+// Get 24h change percentage for all currencies
+router.get("/changes", async (req, res) => {
+  try {
+    const currencies = ["EUR", "USD", "GBP", "CZK", "JPY", "CHF", "PLN", "CAD"];
+    const changes: { [key: string]: number } = {};
+
+    for (const code of currencies) {
+      const history = await prisma.currencyHistory.findMany({
+        where: { code },
+        orderBy: { createdAt: "desc" },
+        take: 2,
+      });
+
+      if (history.length === 2) {
+        const current = history[0].rate;
+        const previous = history[1].rate;
+        changes[code] = parseFloat((((current - previous) / previous) * 100).toFixed(2));
+      } else {
+        changes[code] = 0;
+      }
+    }
+
+    res.json({ success: true, data: changes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to get changes" });
+  }
+});
+
 
 export default router;

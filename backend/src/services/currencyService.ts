@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const BASE_URL = process.env.FRANKFURTER_API_URL || "https://api.frankfurter.app";
+const BASE_URL = "https://api.frankfurter.app";
 
 export const fetchAndSaveRates = async () => {
     const response = await axios.get(`${BASE_URL}/latest?from=EUR&to=USD,GBP,CZK`);
